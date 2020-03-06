@@ -63,7 +63,7 @@ if ($proceed -eq 'Y')
         $body ='{
                 "@odata.id": "https://graph.microsoft.com/v1.0/users/'+$id+'"
                 }'
-            $change = "https://graph.microsoft.com/v1.0/groups/$id/owners/`$ref"
+            $change = "https://graph.microsoft.com/v1.0/groups/" + $teamid.id + "/owners/`$ref"
             $output = Invoke-RestMethod -Headers $Header -Uri $change -Method Post -Body $body -ContentType 'application/json'
 
             write-host "updated user to owner"
