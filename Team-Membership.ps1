@@ -9,6 +9,8 @@ $Grant= 'https://login.microsoftonline.com/common/adminconsent?client_id='
 $admin = '&state=12345&redirect_uri=https://localhost:1234'
 $Grantadmin = $Grant + $client_Id + $admin
 
+Connect-MicrosoftTeams
+
 start $Grantadmin
 write-host "login with your tenant login detials to proceed further"
 
@@ -36,27 +38,24 @@ if ($proceed -eq 'Y')
     #Get Team details
          write-host "Getting Team details..."
          $getTeams = "https://graph.microsoft.com/beta/groups?filter=resourceProvisioningOptions/Any(x:x eq 'Team')" 
-         $Team = Invoke-RestMethod -Headers $Header -Uri $getTeams -Method get -ContentType 'application/json'
-         #$Team.value.id
-         #$Team.value.DisplayName
-        
+         $Teams = Invoke-RestMethod -Headers $Header -Uri $getTeams -Method get -ContentType 'application/json'
+                
 
          do 
         {
 
-      foreach($id in $Team.value.id){
-
-        $Tmembers="https://graph.microsoft.com/v1.0/groups/$id/members"
-        $members = Invoke-RestMethod -Headers $Header -Uri $Tmembers -Method get 
-        #$members.value.id
-        #$members.value.jobTitle
-        #$members.value.DisplayName
+      foreach($Team in $Teams.value.id){
       
 
-        foreach($member in  $members.value.id)
-       
-        {
-       $licenseuri="https://graph.microsoft.com/v1.0/users/$member/licenseDetails"
+        $Tmembers ="https://graph.microsoft.com/v1.0/groups/" + $Team + "/members"
+        $members = Invoke-RestMethod -Headers $Header -Uri $Tmembers -Method get 
+        
+        foreach($value in  $members.value)
+         {
+         $member = $value.id
+        $memberUPN = $value.DisplayName
+
+       $licenseuri="https://graph.microsoft.com/v1.0/users/" + $member + "/licenseDetails"
        $licenseresult=Invoke-RestMethod -Headers $Header -Uri $licenseuri -Method get
 
         $licensevalue = $licenseresult.value
@@ -67,31 +66,41 @@ if ($proceed -eq 'Y')
         
           
           if($license -eq "M365EDU_A5_FACULTY")
-         {
-          $facultybody='{
-                "@odata.id": "https://graph.microsoft.com/v1.0/users/'+$member+'"
-                }'
+                     { <#
+                      $facultybody='{
+                            "@odata.id": "https://graph.microsoft.com/v1.0/users/'+$member+'"
+                            }'
 
-    $facultyuri ="https://graph.microsoft.com/v1.0/groups/$id/owners/`$ref"
-    $output =Invoke-RestMethod -Headers $Header -Uri $facultyuri -Method Post -Body $facultybody -ContentType 'application/json'
-    write-host "Faculty Membership role has been changed to Owner for" $id  $member
-        }
+                            $facultyuri ="https://graph.microsoft.com/v1.0/groups/$id/owners/`$ref"
+                            $output =Invoke-RestMethod -Headers $Header -Uri $facultyuri -Method Post -Body $facultybody -ContentType 'application/json'
+                            write-host "Faculty Membership role has been changed to Owner for" $id  $member 
+                            #>
+
+                        Add-TeamUser -GroupId $Team -User $memberUPN -Role Owner
+
+                            }
         elseif($license -eq "M365EDU_A5_STUDENT")
-        {
-
-        #add student as member
-        $addstudentbody='{
+                    {
+                    #remove student as owner
+                    Remove-TeamUser -GroupId $Team -User $memberUPN -Role Owner
+                                                                    <#
+        $removestudenturi="https://graph.microsoft.com/v1.0/groups/$id/owners/" +$member+ "/`$ref"
+        $output2=Invoke-RestMethod -Headers $Header -Uri $removestudenturi -Method Delete -ContentType 'application/json'
+        write-host "student Membership role has been changed to member " $id $member
+        #>
+                    #add student as member
+                                                                                <#$addstudentbody='{
                 "@odata.id": "https://graph.microsoft.com/v1.0/directoryObjects/'+$member+'"
                 }'
         $addstudenturi ="https://graph.microsoft.com/v1.0/groups/$id/members/`$ref"
         $output1=Invoke-RestMethod -Headers $Header -Uri $addstudenturi -Method Post -Body $addstudentbody -ContentType 'application/json'
 
-        
-        #remove student as owner
-        $removestudenturi="https://graph.microsoft.com/v1.0/groups/$id/owners/" +$member+ "/`$ref"
-        $output2=Invoke-RestMethod -Headers $Header -Uri $removestudenturi -Method Delete -ContentType 'application/json'
-        write-host "student Membership role has been changed to member " $id $member
-        }
+        #>
+
+                    #Add-AzureADGroupMember -ObjectId "62438306-7c37-4638-a72d-0ee8d9217680" -RefObjectId "0a1068c0-dbb6-4537-9db3-b48f3e31dd76"
+                    Add-TeamUser -GroupId $Team -User $memberUPN -Role Member
+
+                    }
 
       else
       {
