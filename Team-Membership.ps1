@@ -11,6 +11,8 @@ $Grantadmin = $Grant + $client_Id + $admin
 
 Connect-MicrosoftTeams
 
+#Connect-AzureAD
+
 start $Grantadmin
 write-host "login with your tenant login detials to proceed further"
 
@@ -39,74 +41,72 @@ if ($proceed -eq 'Y')
          write-host "Getting Team details..."
          $getTeams = "https://graph.microsoft.com/beta/groups?filter=resourceProvisioningOptions/Any(x:x eq 'Team')" 
          $Teams = Invoke-RestMethod -Headers $Header -Uri $getTeams -Method get -ContentType 'application/json'
-                
-
+         
          do 
         {
 
       foreach($Team in $Teams.value.id){
-      
 
+      #get All team members
+        
         $Tmembers ="https://graph.microsoft.com/v1.0/groups/" + $Team + "/members"
         $members = Invoke-RestMethod -Headers $Header -Uri $Tmembers -Method get 
-        
+
+       #Geet all team Owners
+        $Teamowneruri ="https://graph.microsoft.com/v1.0/groups/" + $Team + "/owners"
+        $ownerresult = Invoke-RestMethod -Headers $Header -Uri $Teamowneruri -Method get
+        $owners = $ownerresult.value.id 
+
         foreach($value in  $members.value)
          {
          $member = $value.id
-        $memberUPN = $value.DisplayName
+        $memberUPN = $value.userPrincipalName
+        $memberdisplayname = $value.displayName
 
        $licenseuri="https://graph.microsoft.com/v1.0/users/" + $member + "/licenseDetails"
        $licenseresult=Invoke-RestMethod -Headers $Header -Uri $licenseuri -Method get
 
         $licensevalue = $licenseresult.value
         $license = $licensevalue.skuPartNumber
-        #$titlejob.jobTitle
-        #$titlejob.displayName
-        #$titlejob.value|fl
         
-          
-          if($license -eq "M365EDU_A5_FACULTY")
-                     { <#
+        
+    #case1:if user having faculty license and be part of ownerlist
+            if(($license -eq "M365EDU_A5_FACULTY") -and ($owners -contains $member))
+                        {write-host "This user having Faculty license and already owner of the team" $memberdisplayname }
+
+    #case2:if user having faculty license and not part of ownerlist
+            elseif(($license -eq "M365EDU_A5_FACULTY") -and ($owners -notcontains $member))
+                     { 
                       $facultybody='{
-                            "@odata.id": "https://graph.microsoft.com/v1.0/users/'+$member+'"
+                            "@odata.id": "https://graph.microsoft.com/beta/users/'+$member+'"
                             }'
-
-                            $facultyuri ="https://graph.microsoft.com/v1.0/groups/$id/owners/`$ref"
+                            $facultyuri ="https://graph.microsoft.com/beta/groups/" + "$Team" + "/owners/`$ref"
                             $output =Invoke-RestMethod -Headers $Header -Uri $facultyuri -Method Post -Body $facultybody -ContentType 'application/json'
-                            write-host "Faculty Membership role has been changed to Owner for" $id  $member 
-                            #>
-
-                        Add-TeamUser -GroupId $Team -User $memberUPN -Role Owner
-
+                            write-host "Faculty Membership role has been changed to Owner for team"   $memberdisplayname 
+                            
                             }
-        elseif($license -eq "M365EDU_A5_STUDENT")
+    #case3:if user having STUDENT license and not part of ownerlist
+            elseif(($license -eq "M365EDU_A5_STUDENT") -and ($owners -notcontains $member))
+                    {write-host "This user having STUDENT license and already member of the team" $memberdisplayname}
+
+    #case4:if user having STUDENT license and part of ownerlist
+            elseif(($license -eq "M365EDU_A5_STUDENT") -and ($owners -contains $member))
                     {
-                    #remove student as owner
-                    Remove-TeamUser -GroupId $Team -User $memberUPN -Role Owner
-                                                                    <#
-        $removestudenturi="https://graph.microsoft.com/v1.0/groups/$id/owners/" +$member+ "/`$ref"
-        $output2=Invoke-RestMethod -Headers $Header -Uri $removestudenturi -Method Delete -ContentType 'application/json'
-        write-host "student Membership role has been changed to member " $id $member
-        #>
+                      
+                                                                
+                $removestudenturi="https://graph.microsoft.com/v1.0/groups/" +$Team+ "/owners/" +$member+ "/`$ref"
+                $output2=Invoke-RestMethod -Headers $Header -Uri $removestudenturi -Method Delete -ContentType 'application/json'
+                write-host "student Membership role has been changed to member " $memberdisplayname
+                
                     #add student as member
-                                                                                <#$addstudentbody='{
-                "@odata.id": "https://graph.microsoft.com/v1.0/directoryObjects/'+$member+'"
-                }'
-        $addstudenturi ="https://graph.microsoft.com/v1.0/groups/$id/members/`$ref"
-        $output1=Invoke-RestMethod -Headers $Header -Uri $addstudenturi -Method Post -Body $addstudentbody -ContentType 'application/json'
-
-        #>
-
-                    #Add-AzureADGroupMember -ObjectId "62438306-7c37-4638-a72d-0ee8d9217680" -RefObjectId "0a1068c0-dbb6-4537-9db3-b48f3e31dd76"
-                    Add-TeamUser -GroupId $Team -User $memberUPN -Role Member
-
-                    }
-
+                  Add-TeamUser -GroupId $Team -User $memberUPN -Role Member                                                              
+                   }
+    #case5: if user dont have license
       else
       {
             write-host "user have the different license" 
-            $file = New-Object psobject
-            $file | add-member -MemberType NoteProperty -Name userid $id
+            #$file = New-Object psobject
+            #$file | add-member -MemberType NoteProperty -Name userid $member
         }
     }
     }
@@ -132,3 +132,5 @@ if ($proceed -eq 'Y')
 
     
     
+
+
