@@ -9,7 +9,7 @@ $Grant= 'https://login.microsoftonline.com/common/adminconsent?client_id='
 $admin = '&state=12345&redirect_uri=https://localhost:1234'
 $Grantadmin = $Grant + $client_Id + $admin
 
-Connect-MicrosoftTeams
+#Connect-MicrosoftTeams
 
 #Connect-AzureAD
 
@@ -48,7 +48,7 @@ if ($proceed -eq 'Y')
       foreach($Team in $Teams.value.id){
 
       #get All team members
-        
+        #$Team = "61394a75-cc99-45f9-8cc9-6e22fc4aabdd"
         $Tmembers ="https://graph.microsoft.com/v1.0/groups/" + $Team + "/members"
         $members = Invoke-RestMethod -Headers $Header -Uri $Tmembers -Method get 
 
@@ -92,14 +92,14 @@ if ($proceed -eq 'Y')
     #case4:if user having STUDENT license and part of ownerlist
             elseif(($license -eq "M365EDU_A5_STUDENT") -and ($owners -contains $member))
                     {
-                      
-                                                                
+                     #add student as member
+                  Add-TeamUser -GroupId $Team -User $memberUPN -Role Member 
+                   #removing student as owner                                             
                 $removestudenturi="https://graph.microsoft.com/v1.0/groups/" +$Team+ "/owners/" +$member+ "/`$ref"
                 $output2=Invoke-RestMethod -Headers $Header -Uri $removestudenturi -Method Delete -ContentType 'application/json'
                 write-host "student Membership role has been changed to member " $memberdisplayname
                 
-                    #add student as member
-                  Add-TeamUser -GroupId $Team -User $memberUPN -Role Member                                                              
+                                                                                  
                    }
     #case5: if user dont have license
       else

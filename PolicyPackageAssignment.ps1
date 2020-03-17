@@ -46,12 +46,18 @@ if ($proceed -eq 'Y')
     { 
         foreach($value in $group.value)
        { 
+       $Token1 = Invoke-RestMethod -Uri "$loginurl" -Method POST -Body $ReqTokenBody -ContentType "application/x-www-form-urlencoded"
+
+    $Header1 = @{
+        Authorization = "$($token1.token_type) $($token1.access_token)"
+    }
+
     $id = $value.id
     $UPN = $value.userPrincipalName
 
     #Check if user is assigned any license
         $licenseuri = "https://graph.microsoft.com/v1.0/users/" + "$id" + "/licenseDetails"
-        $licenseresult = Invoke-RestMethod -Headers $Header -Uri $licenseuri  -Method Get
+        $licenseresult = Invoke-RestMethod -Headers $Header1 -Uri $licenseuri  -Method Get
         $licensevalue = $licenseresult.value
         $skuids = $licensevalue.skuId
         $licenses = $licensevalue.skuPartNumber
@@ -62,7 +68,7 @@ if ($proceed -eq 'Y')
         #$fulllicense = [string]::Join(", ",$license)
         
         $useruri = "https://graph.microsoft.com/v1.0/users/" + $id
-        $userresult = Invoke-RestMethod -Headers $Header -Uri $useruri  -Method Get
+        $userresult = Invoke-RestMethod -Headers $Header1 -Uri $useruri  -Method Get
         #foreach($license in $licenses){
 
         
@@ -92,8 +98,14 @@ if ($group.'@odata.nextLink' -eq $null )
         break 
         } 
         else 
-        { 
-        $group = Invoke-RestMethod -Headers $Header -Uri $group.'@odata.nextLink' -Method Get 
+        {
+        $Token2 = Invoke-RestMethod -Uri "$loginurl" -Method POST -Body $ReqTokenBody -ContentType "application/x-www-form-urlencoded"
+
+    $Header2 = @{
+        Authorization = "$($token2.token_type) $($token2.access_token)"
+    }
+     
+        $group = Invoke-RestMethod -Headers $Header2 -Uri $group.'@odata.nextLink' -Method Get 
         } 
         }while($true); 
         }
